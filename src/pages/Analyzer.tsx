@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { quantize, FixedPointFormat, formatLabel } from '../engine/fixedPoint'
 
 const JS_KEYWORDS = new Set(['return','if','else','for','while','do','switch','case','break','continue','new','typeof','instanceof','void','delete','in','of','let','const','var','function','class','import','export','default','true','false','null','undefined','Math','Number','parseInt','parseFloat','NaN','Infinity','this','super'])
@@ -150,6 +150,8 @@ export default function Analyzer() {
   const [results, setResults] = useState<SampleResult[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+  const cancelRef = useRef(false)
 
   const detectedVars = useMemo(() => detectVariables(stripComments(expr)), [expr])
 
@@ -185,40 +187,88 @@ export default function Analyzer() {
     }
   }, [results, detectedVars])
 
+  const MAX_COMBINATIONS = 10000
+  const BATCH_SIZE = 500
+
+  const cancelAnalysis = useCallback(() => {
+    cancelRef.current = true
+  }, [])
+
   const runAnalysis = useCallback(() => {
-    setRunning(true); setError(null)
-    try {
-      const cleanExpr = stripComments(expr)
-      const configs = syncedConfigs
-      if (configs.length === 0) { setError('No variables detected in expression.'); setRunning(false); return }
+    setRunning(true)
+    setError(null)
+    setResults([])
+    setProgress(null)
+    cancelRef.current = false
 
-      const ranges: number[][] = configs.map(cfg => {
-        const min = parseFloat(cfg.min), max = parseFloat(cfg.max), step = parseFloat(cfg.step)
-        if (isNaN(min) || isNaN(max) || isNaN(step) || step <= 0) return [min]
-        const pts: number[] = []
-        for (let v = min; v <= max + 1e-9; v += step) pts.push(Math.round(v * 1e9) / 1e9)
-        return pts
-      })
+    const cleanExpr = stripComments(expr)
+    const configs = syncedConfigs
 
-      const combinations = cartesian(ranges)
-      const newResults: SampleResult[] = combinations.map(combo => {
+    if (configs.length === 0) {
+      setError('No variables detected in expression.')
+      setRunning(false)
+      return
+    }
+
+    const ranges: number[][] = configs.map(cfg => {
+      const min = parseFloat(cfg.min), max = parseFloat(cfg.max), step = parseFloat(cfg.step)
+      if (isNaN(min) || isNaN(max) || isNaN(step) || step <= 0) return [min]
+      const pts: number[] = []
+      for (let v = min; v <= max + 1e-9; v += step) pts.push(Math.round(v * 1e9) / 1e9)
+      return pts
+    })
+
+    const combinations = cartesian(ranges)
+
+    if (combinations.length > MAX_COMBINATIONS) {
+      setError(`Too many combinations: ${combinations.length.toLocaleString()}. Reduce your sweep range or step size (max ${MAX_COMBINATIONS.toLocaleString()}).`)
+      setRunning(false)
+      return
+    }
+
+    const total = combinations.length
+    setProgress({ done: 0, total })
+
+    const processBatch = (startIdx: number, accumulated: SampleResult[]) => {
+      if (cancelRef.current) {
+        setResults(accumulated)
+        setRunning(false)
+        setProgress(null)
+        return
+      }
+
+      const endIdx = Math.min(startIdx + BATCH_SIZE, total)
+      const batch: SampleResult[] = []
+
+      for (let i = startIdx; i < endIdx; i++) {
+        const combo = combinations[i]
         const rawVars: Record<string, number> = {}
         const fixedVars: Record<string, number> = {}
-        configs.forEach((cfg, i) => {
-          rawVars[cfg.name] = combo[i]
-          fixedVars[cfg.name] = quantizeVar(combo[i], cfg.type)
+        configs.forEach((cfg, j) => {
+          rawVars[cfg.name] = combo[j]
+          fixedVars[cfg.name] = quantizeVar(combo[j], cfg.type)
         })
         const fixedRaw = evalExpr(cleanExpr, fixedVars)
         const floatRef = evalExpr(cleanExpr, rawVars)
         const q = quantize(fixedRaw, fmt)
         const absError = isNaN(floatRef) ? 0 : Math.abs(q.value - floatRef)
         const relError = floatRef !== 0 && !isNaN(floatRef) ? absError / Math.abs(floatRef) : 0
-        return { vars: rawVars, fixedOutput: q.value, floatRef: isNaN(floatRef) ? 0 : floatRef, absError, relError, overflow: q.overflow }
-      })
+        batch.push({ vars: rawVars, fixedOutput: q.value, floatRef: isNaN(floatRef) ? 0 : floatRef, absError, relError, overflow: q.overflow })
+      }
 
-      setResults(newResults)
-    } catch (e) { setError(String(e)) }
-    setRunning(false)
+      const next = [...accumulated, ...batch]
+      setProgress({ done: endIdx, total })
+
+      if (endIdx >= total) {
+        setResults(next)
+        setRunning(false)
+        setProgress(null)
+      } else {
+        setTimeout(() => processBatch(endIdx, next), 0)
+      }
+    }
+
+    setTimeout(() => processBatch(0, []), 0)
   }, [expr, syncedConfigs, fmt])
 
   return (
@@ -284,10 +334,29 @@ export default function Analyzer() {
             </div>
           ))}
           {error && <div className="text-red-600 text-sm font-medium">{error}</div>}
-          <button onClick={runAnalysis} disabled={running}
-            className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors disabled:opacity-50">
-            {running ? 'Running...' : 'Run Analysis'}
-          </button>
+          {progress && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-gray-500 font-mono">
+                <span>Processing... {progress.done.toLocaleString()} / {progress.total.toLocaleString()}</span>
+                <span>{Math.round((progress.done / progress.total) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button onClick={runAnalysis} disabled={running}
+              className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors disabled:opacity-50">
+              {running ? 'Running...' : 'Run Analysis'}
+            </button>
+            {running && (
+              <button onClick={cancelAnalysis}
+                className="border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors">
+                Cancel
+              </button>
+            )}
+          </div>
         </section>
       )}
 
