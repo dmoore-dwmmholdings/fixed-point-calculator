@@ -77,7 +77,7 @@ export function quantize(value: number, fmt: FixedPointFormat): FixedPointResult
     fracPart = bitString.slice(1 + fmt.intBits)
   } else {
     intPart = bitString.slice(0, fmt.intBits)
-    fracPart = bitString.slice(fmt.fracBits)
+    fracPart = bitString.slice(fmt.intBits)
   }
 
   return {
