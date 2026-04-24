@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { quantize, FixedPointFormat, formatLabel } from '../engine/fixedPoint'
 
 const JS_KEYWORDS = new Set(['return','if','else','for','while','do','switch','case','break','continue','new','typeof','instanceof','void','delete','in','of','let','const','var','function','class','import','export','default','true','false','null','undefined','Math','Number','parseInt','parseFloat','NaN','Infinity','this','super'])
@@ -226,23 +226,25 @@ export default function Analyzer() {
     const total = combinations.length
     setProgress({ done: 0, total })
 
-    const processBatch = (startIdx: number, accumulated: SampleResult[]) => {
-      if (startIdx === 0) {
-        ;(processBatch as unknown as { startTime?: number }).startTime = Date.now()
-      }
-      const elapsed = Date.now() - ((processBatch as unknown as { startTime?: number }).startTime ?? Date.now())
-      if (elapsed > 8000 && startIdx > 0 && startIdx < total * 0.5) {
-        setError(`Still running (${Math.round(elapsed / 1000)}s elapsed, ${progress?.done?.toLocaleString() ?? 0}/${total.toLocaleString()} done). Hit Cancel to stop and retry with fewer combinations.`)
-      }
+    const allResults: SampleResult[] = []
+
+    const processBatch = (startIdx: number) => {
       if (cancelRef.current) {
-        setResults(accumulated)
+        setResults([...allResults])
         setRunning(false)
         setProgress(null)
         return
       }
 
+      if (startIdx === 0) {
+        ;(processBatch as unknown as { startTime?: number }).startTime = Date.now()
+      }
+      const elapsed = Date.now() - ((processBatch as unknown as { startTime?: number }).startTime ?? Date.now())
+      if (elapsed > 8000 && startIdx > 0 && startIdx < total * 0.5) {
+        setError(`Still running (${Math.round(elapsed / 1000)}s elapsed). Hit Cancel to stop and retry with fewer combinations.`)
+      }
+
       const endIdx = Math.min(startIdx + BATCH_SIZE, total)
-      const batch: SampleResult[] = []
 
       for (let i = startIdx; i < endIdx; i++) {
         const combo = combinations[i]
@@ -257,23 +259,33 @@ export default function Analyzer() {
         const q = quantize(fixedRaw, fmt)
         const absError = isNaN(floatRef) ? 0 : Math.abs(q.value - floatRef)
         const relError = floatRef !== 0 && !isNaN(floatRef) ? absError / Math.abs(floatRef) : 0
-        batch.push({ vars: rawVars, fixedOutput: q.value, floatRef: isNaN(floatRef) ? 0 : floatRef, absError, relError, overflow: q.overflow })
+        allResults.push({ vars: rawVars, fixedOutput: q.value, floatRef: isNaN(floatRef) ? 0 : floatRef, absError, relError, overflow: q.overflow })
       }
 
-      const next = [...accumulated, ...batch]
       setProgress({ done: endIdx, total })
 
       if (endIdx >= total) {
-        setResults(next)
+        setResults([...allResults])
         setRunning(false)
         setProgress(null)
       } else {
-        setTimeout(() => processBatch(endIdx, next), 0)
+        setTimeout(() => processBatch(endIdx), 0)
       }
     }
 
-    setTimeout(() => processBatch(0, []), 0)
+    setTimeout(() => processBatch(0), 0)
   }, [expr, syncedConfigs, fmt])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !running) {
+        e.preventDefault()
+        runAnalysis()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [running, runAnalysis])
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
