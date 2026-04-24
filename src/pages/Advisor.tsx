@@ -3,7 +3,6 @@ import { quantize, formatLabel, representableRange, FixedPointFormat } from '../
 
 interface Stage {
   id: number
-  label: string
   fmt: FixedPointFormat
   idealValue: string
 }
@@ -53,14 +52,12 @@ function FmtInput({ fmt, onChange }: { fmt: FixedPointFormat; onChange: (f: Fixe
 
 export default function Advisor() {
   const [stages, setStages] = useState<Stage[]>([
-    { id: 1, label: 'Stage 1', fmt: { signed: false, intBits: 8, fracBits: 8 }, idealValue: '3.14159' },
+    { id: Date.now(), fmt: { signed: false, intBits: 8, fracBits: 8 }, idealValue: '3.14159' },
   ])
   const [outputFmt, setOutputFmt] = useState<FixedPointFormat>({ signed: false, intBits: 8, fracBits: 8 })
-  const [nextId, setNextId] = useState(2)
 
   const addStage = () => {
-    setStages(s => [...s, { id: nextId, label: 'Stage ' + nextId, fmt: { signed: false, intBits: 8, fracBits: 8 }, idealValue: '1.0' }])
-    setNextId(n => n + 1)
+    setStages(s => [...s, { id: Date.now(), fmt: { signed: false, intBits: 8, fracBits: 8 }, idealValue: '1.0' }])
   }
 
   const removeStage = (id: number) => setStages(s => s.filter(st => st.id !== id))
@@ -84,15 +81,12 @@ export default function Advisor() {
 
           return (
             <section key={stage.id} className="bg-white rounded-xl shadow p-6 space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                💡 Enter the ideal floating-point value you want to represent at this stage. The advisor shows quantization error, SNR, and whether the format covers your value's range.
+              </div>
+
               <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <span className="bg-primary text-white text-xs font-bold px-2 py-1 rounded-full">{idx + 1}</span>
-                  <input
-                    value={stage.label}
-                    onChange={e => updateStage(stage.id, { label: e.target.value })}
-                    className="text-lg font-semibold text-gray-800 border-b border-transparent hover:border-gray-300 focus:border-primary outline-none bg-transparent"
-                  />
-                </div>
+                <span className="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">Stage {idx + 1}</span>
                 {stages.length > 1 && (
                   <button onClick={() => removeStage(stage.id)} className="text-red-400 hover:text-red-600 text-sm">Remove</button>
                 )}
@@ -100,8 +94,10 @@ export default function Advisor() {
 
               <FmtInput fmt={stage.fmt} onChange={fmt => updateStage(stage.id, { fmt })} />
 
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-gray-700 w-32">Ideal value</label>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-sm font-medium text-gray-700">
+                  Ideal (float) value — what you're trying to represent
+                </label>
                 <input
                   value={stage.idealValue}
                   onChange={e => updateStage(stage.id, { idealValue: e.target.value })}
