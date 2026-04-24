@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Calculator from './pages/Calculator'
 import Advisor from './pages/Advisor'
 import Analyzer from './pages/Analyzer'
+import Docs from './pages/Docs'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/calculator" element={<Calculator />} />
         <Route path="/advisor" element={<Advisor />} />
         <Route path="/analyzer" element={<Analyzer />} />
+        <Route path="/docs" element={<Docs />} />
       </Routes>
     </Layout>
   )

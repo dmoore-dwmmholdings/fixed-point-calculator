@@ -1,1 +1,1 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/Layout.tsx","./src/engine/fixedPoint.ts","./src/pages/Advisor.tsx","./src/pages/Analyzer.tsx","./src/pages/Calculator.tsx","./src/pages/Home.tsx"],"version":"6.0.3"}
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/Layout.tsx","./src/engine/fixedPoint.ts","./src/pages/Advisor.tsx","./src/pages/Analyzer.tsx","./src/pages/Calculator.tsx","./src/pages/Docs.tsx","./src/pages/Home.tsx"],"version":"6.0.3"}

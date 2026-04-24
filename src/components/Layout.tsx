@@ -6,6 +6,7 @@ const navLinks = [
   { to: '/calculator', label: 'Bit Visualizer' },
   { to: '/advisor', label: 'Format Advisor' },
   { to: '/analyzer', label: 'C Analyzer' },
+  { to: '/docs', label: 'Docs' },
 ]
 
 export default function Layout({ children }: { children: ReactNode }) {

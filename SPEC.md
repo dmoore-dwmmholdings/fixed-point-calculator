@@ -125,36 +125,43 @@
 ## Development Phases
 
 ### Phase 1 — Scaffold & Core UI
-- [ ] Vite + React + TypeScript project init
-- [ ] Tailwind CSS with green theme configured
-- [ ] Routing (React Router)
-- [ ] Layout shell: nav, footer, page containers
-- [ ] Firebase Hosting config (`firebase.json`, `.firebaserc`)
+- [x] Vite + React + TypeScript project init
+- [x] Tailwind CSS with green theme configured
+- [x] Routing (React Router)
+- [x] Layout shell: nav, footer, page containers
+- [x] Firebase Hosting config (`firebase.json`, `.firebaserc`)
 
 ### Phase 2 — Module 1: Bit Visualizer
-- [ ] Fixed-point math engine (TypeScript)
-- [ ] Bit field visualization component
-- [ ] Arithmetic operations with overflow detection
-- [ ] Unit tests for math engine
+- [x] Fixed-point math engine (TypeScript)
+- [x] Bit field visualization component
+- [x] Arithmetic operations with overflow detection
+- [x] Unit tests for math engine (16/16 passing)
 
 ### Phase 3 — Module 2: Format Advisor
-- [ ] Multi-stage computation chain UI
-- [ ] Precision/dynamic range analysis engine
-- [ ] Format suggestion logic
+- [x] Multi-stage computation chain UI
+- [x] Precision/dynamic range analysis engine
+- [x] Format suggestion logic
 - [ ] Unit tests
 
 ### Phase 4 — Module 3: C Code Analyzer
-- [ ] TypeScript-based C expression interpreter (MVP)
-- [ ] Value range sweep engine
-- [ ] Error statistics and histogram
-- [ ] CSV export
+- [x] TypeScript-based C expression interpreter (MVP)
+- [x] Value range sweep engine
+- [x] Error statistics
+- [x] CSV export
 - [ ] Unit tests
+- [ ] Error histogram visualization (future)
 
 ### Phase 5 — Polish & Deploy
-- [ ] Landing page
-- [ ] Documentation page
-- [ ] Firebase deployment pipeline
+- [x] Landing page (hero + feature cards + facts strip)
+- [x] Documentation page
+- [x] Firebase deployment pipeline (live: https://fixedflow-33559.web.app)
 - [ ] E2E tests (Playwright)
+- [ ] Service account auth for CI deploys (replace FIREBASE_TOKEN)
+
+### Notes
+- C Analyzer uses a TypeScript expression interpreter (MVP). Full C→WASM compilation via Emscripten is a future milestone.
+- npm binary symlinks for vitest do not work on the host-mounted Docker filesystem; tests run via /tmp/node_modules/.bin/vitest.
+- firebase-tools FIREBASE_TOKEN auth is deprecated; migrate to GOOGLE_APPLICATION_CREDENTIALS service account for production CI.
 
 ---
 
