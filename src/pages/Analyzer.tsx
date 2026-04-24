@@ -187,7 +187,6 @@ export default function Analyzer() {
     }
   }, [results, detectedVars])
 
-  const MAX_COMBINATIONS = 10000
   const BATCH_SIZE = 500
 
   const cancelAnalysis = useCallback(() => {
@@ -220,16 +219,21 @@ export default function Analyzer() {
 
     const combinations = cartesian(ranges)
 
-    if (combinations.length > MAX_COMBINATIONS) {
-      setError(`Too many combinations: ${combinations.length.toLocaleString()}. Reduce your sweep range or step size (max ${MAX_COMBINATIONS.toLocaleString()}).`)
-      setRunning(false)
-      return
+    if (combinations.length > 50000) {
+      setError(`Warning: ${combinations.length.toLocaleString()} combinations — this may take a while. Hit Cancel if it's too slow, then reduce your range or increase step size.`)
     }
 
     const total = combinations.length
     setProgress({ done: 0, total })
 
     const processBatch = (startIdx: number, accumulated: SampleResult[]) => {
+      if (startIdx === 0) {
+        ;(processBatch as unknown as { startTime?: number }).startTime = Date.now()
+      }
+      const elapsed = Date.now() - ((processBatch as unknown as { startTime?: number }).startTime ?? Date.now())
+      if (elapsed > 8000 && startIdx > 0 && startIdx < total * 0.5) {
+        setError(`Still running (${Math.round(elapsed / 1000)}s elapsed, ${progress?.done?.toLocaleString() ?? 0}/${total.toLocaleString()} done). Hit Cancel to stop and retry with fewer combinations.`)
+      }
       if (cancelRef.current) {
         setResults(accumulated)
         setRunning(false)
