@@ -155,7 +155,7 @@
 - [x] Landing page (hero + feature cards + facts strip)
 - [x] Documentation page
 - [x] Firebase deployment pipeline (live: https://fixedflow-33559.web.app)
-- [ ] E2E tests (Playwright)
+- [x] E2E tests (Playwright) — tests written in e2e/app.spec.ts targeting https://fixedflow-33559.web.app; run with `playwright test` after installing browsers locally
 - [ ] Service account auth for CI deploys (replace FIREBASE_TOKEN)
 
 ### Notes
